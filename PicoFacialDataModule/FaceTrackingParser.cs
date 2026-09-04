@@ -5,12 +5,13 @@ namespace PicoFacialDataModule
 {
     using static PicoBlendshapes;
     using static UnifiedExpressions;
+    using static VideoInputType;
 
     public class FaceTrackingParser
     {
         public void Parse(PicoFTInfo picoFTInfo)
         {
-            if (picoFTInfo.VideoInputValid[1] != 1)
+            if (picoFTInfo.VideoInputValid[(int)VIDEO_INPUT_FACE] != 1)
                 return;
 
             var blendshapes = picoFTInfo.BlendshapeWeight;
@@ -96,6 +97,11 @@ namespace PicoFacialDataModule
             face[TongueOut] = blendshapes[TongueShapeOut];
 
             #endregion
+
+#if FACEDEBUG
+            Console.SetCursorPosition(0,0);
+            Console.Write(picoFTInfo);
+#endif
         }
     }
 }

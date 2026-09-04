@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Authors>$(AssemblyName)</Authors>
+    <Configurations>Debug;Release;EyeDebug;FaceDebug</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,7 +23,7 @@
     <ProjectReference Include="..\VRCFaceTracking\VRCFaceTracking.SDK\VRCFaceTracking.SDK.csproj" />
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(Configuration)' == 'Debug'">
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(Configuration)' == 'Debug' or '$(Configuration)' == 'EyeDebug' or '$(Configuration)' == 'FaceDebug'">
       <Exec Command="copy /y &quot;$(TargetDir)PicoFacialDataModule.dll&quot; &quot;%25APPDATA%25\VRCFaceTracking\CustomLibs&quot;" />
       <Exec Command="copy /y &quot;$(TargetDir)PicoFacialDataModule.pdb&quot; &quot;%25APPDATA%25\VRCFaceTracking\CustomLibs&quot;" />
   </Target>

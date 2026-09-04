@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace PicoFacialDataModule.Models
 {
@@ -59,6 +60,12 @@ namespace PicoFacialDataModule.Models
         TongueShapeOut = 51
     };
 
+    public enum VideoInputType
+    {
+        VIDEO_INPUT_EYE,
+        VIDEO_INPUT_FACE
+    }
+
     [InlineArray(72)]
     public struct BlendShapes
     {
@@ -74,6 +81,18 @@ namespace PicoFacialDataModule.Models
     public struct Float10
     {
         private float _element0;
+
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+
+            for (int i = 0; i < 10; i++)
+            {
+                sb.Append($"{this[i]}, ");
+            }
+
+            return sb.ToString();
+        }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -86,5 +105,23 @@ namespace PicoFacialDataModule.Models
         public Float10 VideoInputValid;
         public float LaughingProb;
         public Float10 EmotionProb;
+
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine($"Timestamp: {Timestamp}");
+
+            foreach (var blendshape in Enum.GetValues<PicoBlendshapes>())
+            {
+                sb.AppendLine($"{blendshape.ToString()}: {BlendshapeWeight[(int)blendshape]}");
+            }
+
+            sb.AppendLine($"VideoInputValid: [{VideoInputValid}]");
+            sb.AppendLine($"LaughingProb: {LaughingProb}");
+            sb.AppendLine($"EmotionProb: [{EmotionProb}]");
+
+            return sb.ToString();
+        }
     }
 }

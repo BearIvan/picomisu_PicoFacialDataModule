@@ -1,4 +1,10 @@
 <Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="EyeDebug" />
+    <BuildType Name="FaceDebug" />
+    <BuildType Name="Release" />
+  </Configurations>
   <Project Path="PicoFacialDataModule/PicoFacialDataModule.csproj" />
   <Project Path="VRCFaceTracking/VRCFaceTracking.Core/VRCFaceTracking.Core.csproj" />
   <Project Path="VRCFaceTracking/VRCFaceTracking.SDK/VRCFaceTracking.SDK.csproj" />

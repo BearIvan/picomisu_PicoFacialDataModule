@@ -32,10 +32,15 @@ namespace PicoFacialDataModule
         private IPEndPoint? _client;
         private bool _established;
 
-        private FaceTrackingParser? _faceTrackingParser;
-        private EyeTrackingParser? _eyeTrackingParser;
+#pragma warning disable CS8618 // Because we didn't initialize in the constructor it is WHINING!
+        private FaceTrackingParser _faceTrackingParser;
+        private EyeTrackingParser _eyeTrackingParser;
+        private ModuleSettings _moduleSettings;
+#pragma warning restore CS8618
 
-        private ModuleSettings? _moduleSettings;
+#if EYEDEBUG || FACEDEBUG
+        private int _consolePixels;
+#endif
 
         public override (bool SupportsEye, bool SupportsExpression) Supported => (true, false);
 
@@ -58,10 +63,10 @@ namespace PicoFacialDataModule
 
                 _udpClient.Client.ReceiveTimeout = 2000;
 
-                _faceTrackingParser = new FaceTrackingParser();
-                _eyeTrackingParser = new EyeTrackingParser();
-
                 _moduleSettings = SettingsManager.GetOrCreate();
+
+                _faceTrackingParser = new FaceTrackingParser();
+                _eyeTrackingParser = new EyeTrackingParser(_moduleSettings);
 
                 return (!_moduleSettings.DisableEyeTracking, !_moduleSettings.DisableFaceTracking);
             } catch (Exception e)
@@ -73,6 +78,15 @@ namespace PicoFacialDataModule
 
         public override void Update()
         {
+#if EYEDEBUG || FACEDEBUG
+            var currentConsolePixels = Console.WindowWidth + Console.WindowHeight;
+            if (_consolePixels != currentConsolePixels)
+            {
+                Console.Clear();
+                _consolePixels = currentConsolePixels;
+            }
+#endif
+
             if (!ModuleInformation.Active)
             {
                 Thread.Sleep(500);
@@ -156,7 +170,11 @@ namespace PicoFacialDataModule
         /// <returns></returns>
         private byte[] Start()
         {
-            var broadCastEndpoint = new IPEndPoint(IPAddress.Parse(MULTICAST_ADDRESS), PORT);
+            IPEndPoint endpoint = new IPEndPoint(
+                string.IsNullOrEmpty(_moduleSettings.IP) ? IPAddress.Parse(MULTICAST_ADDRESS) : IPAddress.Parse(_moduleSettings.IP), 
+                PORT
+            );
+
             var discoverPayload = Encoding.UTF8.GetBytes(DISCOVER_PAYLOAD);
 
             byte[]? reply = null;
@@ -173,7 +191,7 @@ namespace PicoFacialDataModule
                         SocketOptionName.MulticastInterface,
                         IP.GetAddressBytes()
                      );
-                    _udpClient.Send(discoverPayload, discoverPayload.Length, broadCastEndpoint);
+                    _udpClient.Send(discoverPayload, discoverPayload.Length, endpoint);
                 }
 
                 IPEndPoint? receiver = null;
