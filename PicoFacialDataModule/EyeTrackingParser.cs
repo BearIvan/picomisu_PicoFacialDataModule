@@ -55,7 +55,7 @@ namespace PicoFacialDataModule
 
             #region RIGHT EYE
 
-            if (eyeData.LeftEyePoseStatus.HasFlag(EYE_GAZE_VECTOR_VALID))
+            if (eyeData.RightEyePoseStatus.HasFlag(EYE_GAZE_VECTOR_VALID))
             {
                 eye.Right.Gaze.x = eyeData.RightEyeGazeVectorX;
                 eye.Right.Gaze.y = eyeData.RightEyeGazeVectorY;

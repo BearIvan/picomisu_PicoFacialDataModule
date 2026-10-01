@@ -28,9 +28,12 @@ namespace PicoFacialDataModule
 
         private const string STOP = "STOP";
 
+        private const int DISCOVER_INTERVAL_MS = 1000;
+
         private UdpClient? _udpClient;
         private IPEndPoint? _client;
         private bool _established;
+        private volatile bool _stopping;
 
 #pragma warning disable CS8618 // Because we didn't initialize in the constructor it is WHINING!
         private FaceTrackingParser _faceTrackingParser;
@@ -62,6 +65,15 @@ namespace PicoFacialDataModule
                 };
 
                 _udpClient.Client.ReceiveTimeout = 2000;
+
+                // Windows reports an ICMP "port unreachable" (a reply sent to a daemon session that
+                // has already closed) as WSAECONNRESET on the next Receive, which then failed at once
+                // and made the discovery loop spin without waiting. Ignore those reports.
+                if (OperatingSystem.IsWindows())
+                {
+                    const int SIO_UDP_CONNRESET = -1744830452;
+                    _udpClient.Client.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null);
+                }
 
                 _moduleSettings = SettingsManager.GetOrCreate();
 
@@ -98,6 +110,8 @@ namespace PicoFacialDataModule
                 if (!_established)
                 {
                     byte[]? initialResult = Start();
+                    if (initialResult == null)
+                        return;
 
                     _established = true;
                     ProcessReply(initialResult);
@@ -110,9 +124,15 @@ namespace PicoFacialDataModule
                     IPEndPoint? receiver = null;
                     result = _udpClient!.Receive(ref receiver);
                 }
-                catch
+                catch (SocketException e) when (e.SocketErrorCode == SocketError.TimedOut)
                 {
                     _established = false;
+                }
+                catch
+                {
+                    // Any other socket error returns at once: wait before discovering again.
+                    _established = false;
+                    Thread.Sleep(1000);
                 }
 
                 ProcessReply(result);
@@ -128,6 +148,8 @@ namespace PicoFacialDataModule
 
         public override void Teardown()
         {
+            _stopping = true;
+
             if (_udpClient != null && _client != null)
                 _udpClient.Send(Encoding.UTF8.GetBytes(STOP), _client);
 
@@ -168,7 +190,7 @@ namespace PicoFacialDataModule
         /// The daemon will shut down automatically once the UDP port gets disposed.
         /// </summary>
         /// <returns></returns>
-        private byte[] Start()
+        private byte[]? Start()
         {
             IPEndPoint endpoint = new IPEndPoint(
                 string.IsNullOrEmpty(_moduleSettings.IP) ? IPAddress.Parse(MULTICAST_ADDRESS) : IPAddress.Parse(_moduleSettings.IP), 
@@ -182,8 +204,11 @@ namespace PicoFacialDataModule
             // Get all network cards.
             var networkIPs = Dns.GetHostAddresses(Dns.GetHostName()).Where(ip => ip.AddressFamily == AddressFamily.InterNetwork);
 
-            while (true)
+            while (!_stopping)
             {
+                // At most one discovery round per second, however fast Receive returns.
+                var roundStart = Environment.TickCount64;
+
                 foreach (var IP in networkIPs)
                 {
                     _udpClient!.Client.SetSocketOption(
@@ -207,7 +232,13 @@ namespace PicoFacialDataModule
                     _client = receiver!;
                     return reply;
                 }
+
+                var elapsed = Environment.TickCount64 - roundStart;
+                if (elapsed < DISCOVER_INTERVAL_MS)
+                    Thread.Sleep((int)(DISCOVER_INTERVAL_MS - elapsed));
             }
+
+            return null;
         }
     }
 }
